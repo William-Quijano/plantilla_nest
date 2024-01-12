@@ -1,0 +1,76 @@
+version: '3.5'
+
+services:
+  mongo:
+    image: mongo:5
+    restart: always
+    container_name: mongo_nest
+    ports:
+      - '${MONGO_PORT:-27017}:27017'
+    environment:
+        MONGO_INITDB_ROOT_USERNAME: '${MONGO_USERNAME}'
+        MONGO_INITDB_ROOT_PASSWORD: '${MONGO_PASSWORD}'
+        MONGO_INITDB_DATABASE: '${MONGO_DATABASE}'
+    volumes:
+      - 'nest-mongo:/data/db'
+    networks:
+      - nest
+  pgsql:
+    image: postgres:15.1
+    restart: always
+    container_name: pgsql_nest
+    ports:
+      - '${POSTGRES_PORT}:5432'
+    environment:
+      POSTGRES_DB: '${POSTGRES_DB_NAME}'
+      POSTGRES_USER: '${POSTGRES_DB_USER}'
+      POSTGRES_PASSWORD: '${POSTGRES_DB_PASSWORD}'
+    volumes:
+      - 'nest-postgresql:/var/lib/postgresql/data'
+      - './db/init.sql:/docker-entrypoint-initdb.d/init.sql'
+    networks:
+      - nest
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    container_name: app_nest
+#    image: nest-js
+    command: npm run start:dev
+    environment:
+      - DB_TYPE=${DB_TYPE}
+      - POSTGRES_HOST=${POSTGRES_HOST}
+      - POSTGRES_DB_USER=${POSTGRES_DB_USER}
+      - POSTGRES_DB_PASSWORD=${POSTGRES_DB_PASSWORD}
+      - POSTGRES_DB_NAME=${POSTGRES_DB_NAME}
+      - POSTGRES_SYNC=false
+      - MONGO_PORT=27018
+      - MONGO_HOST=${MONGO_HOST}
+      - MONGO_DATABASE=${MONGO_DATABASE}
+      - MONGO_USERNAME=${MONGO_USERNAME}
+      - MONGO_PASSWORD=${MONGO_PASSWORD}
+      - JWT_SECRET=${JWT_SECRET}
+      - POSTGRES_PORT=5432
+      - APP_EXPIRES=${APP_EXPIRES}
+      - APP_PORT=${APP_PORT}
+    ports:
+      - '${APP_PORT:-3000}:3000'
+      - '${APP_PORT_DEBUG:-9229}:9229'
+    depends_on:
+      - pgsql
+      - mongo
+    networks:
+      - nest
+    volumes:
+      - .:/app
+      - /app/node_modules
+networks:
+  nest:
+      name: nest
+      driver: bridge
+volumes:
+    nest-postgresql:
+      driver: local
+    nest-mongo:
+      driver: local
